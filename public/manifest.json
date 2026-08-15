@@ -1,0 +1,13 @@
+{
+  "name": "Excelsus",
+  "short_name": "Excelsus",
+  "description": "Portable voice AI assistant wired into the Excelsus CRM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060202",
+  "theme_color": "#0a0000",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0000" />
+  <title>EXCELSUS</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="grid-bg"></div>
+
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◈</span>
+        <span class="brand-text">EXCELSUS</span>
+      </div>
+      <div class="status" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">CONNECTING</span>
+      </div>
+    </header>
+
+    <section class="core-stage">
+      <div class="core" id="core">
+        <svg class="core-rings" viewBox="0 0 400 400">
+          <circle class="ring ring-1" cx="200" cy="200" r="180" />
+          <circle class="ring ring-2" cx="200" cy="200" r="150" />
+          <circle class="ring ring-3" cx="200" cy="200" r="120" />
+          <circle class="ring ring-ticks" cx="200" cy="200" r="165" />
+        </svg>
+        <canvas id="waveform" class="waveform" width="400" height="400"></canvas>
+        <div class="core-glow"></div>
+      </div>
+      <div class="core-label" id="coreLabel">STANDING BY</div>
+    </section>
+
+    <section class="transcript" id="transcript"></section>
+
+    <footer class="control-bar">
+      <button class="mic-btn" id="micBtn" aria-label="Talk">
+        <svg viewBox="0 0 24 24" class="mic-icon">
+          <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" />
+          <path d="M19 11a7 7 0 0 1-14 0" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      </button>
+      <form class="text-form" id="textForm">
+        <input
+          type="text"
+          id="textInput"
+          class="text-input"
+          placeholder="Ask Excelsus..."
+          autocomplete="off"
+        />
+        <button type="submit" class="send-btn" aria-label="Send">▶</button>
+      </form>
+      <button class="voice-toggle" id="voiceToggle" aria-label="Toggle voice reply" title="Toggle spoken replies">
+        🔊
+      </button>
+    </footer>
+  </main>
+
+  <audio id="player" hidden></audio>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "excelsus-jarvis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Excelsus — a portable voice AI assistant wired into the Excelsus Base44 CRM, Gemini 2.5 Flash, and local Piper TTS.",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@base44/sdk": "^0.8.41",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.14",
+    "ws": "^8.17.0"
+  }
+}
