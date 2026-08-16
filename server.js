@@ -9,7 +9,21 @@ const groq = require('./lib/groq');
 const base44Tools = require('./lib/base44Tools');
 const generalTools = require('./lib/generalTools');
 const { createEmailTools } = require('./lib/emailTools');
+const { stripMarkdownForSpeech } = require('./lib/textForSpeech');
 const tts = require('./lib/tts');
+
+// If Piper hangs, or the container gets OOM-killed mid-synthesis, don't
+// leave the socket waiting indefinitely — fail fast with a clear error so
+// the client resets instead of sitting on "PROCESSING" until the WS itself
+// eventually drops.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    )
+  ]);
+}
 
 const PORT = process.env.PORT || 8080;
 
@@ -71,8 +85,13 @@ wss.on('connection', (ws) => {
 
       if (msg.voice !== false) {
         try {
-          const wav = await tts.synthesize(replyText);
-          console.log(`[tts] synthesized ${wav.length} bytes for reply of ${replyText.length} chars`);
+          // Piper speaks literal characters — "**Noland's Roofing**" gets
+          // the asterisks read aloud instead of skipped — and stripping
+          // markdown also shrinks longer list-style replies before they
+          // hit synthesis, which matters on a memory-constrained instance.
+          const speechText = stripMarkdownForSpeech(replyText);
+          const wav = await withTimeout(tts.synthesize(speechText), 25000, 'TTS synthesis');
+          console.log(`[tts] synthesized ${wav.length} bytes for reply of ${replyText.length} chars (${speechText.length} chars after markdown strip)`);
           if (wav.length < 100) {
             console.warn('[tts] suspiciously small WAV — likely not valid audio, sending anyway for inspection');
           }

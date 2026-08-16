@@ -74,6 +74,7 @@
           playAudio(msg.audio);
           break;
         case 'audio_error':
+          console.error('[audio_error]', msg.error);
           setCoreState('idle', 'STANDING BY');
           break;
         case 'pending_email':
