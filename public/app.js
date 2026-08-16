@@ -18,6 +18,32 @@
   let recognition = null;
 
   // ---------------------------------------------------------------------
+  // Audio unlock — MUST run synchronously inside a real user tap/click.
+  // Once player (an <audio> element) is routed through createMediaElement-
+  // Source into this AudioContext, ALL of its sound depends on the context
+  // being 'running'. Calling resume() later, from an async event like the
+  // <audio> element's own 'play' handler (which can fire seconds after the
+  // last real tap, once a WebSocket reply comes back), gets silently
+  // ignored by mobile browsers — the element still plays/ends normally,
+  // just with zero audible output. That silent-but-"working" state was
+  // the actual bug. Calling this directly inside mic/send tap handlers
+  // keeps it inside the gesture's call stack, where resume() reliably works.
+  let audioCtx, analyser, sourceNode, dataArray;
+
+  function unlockAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      sourceNode = audioCtx.createMediaElementSource(player);
+      sourceNode.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  // ---------------------------------------------------------------------
   // WebSocket
   // ---------------------------------------------------------------------
   function connect() {
@@ -137,6 +163,7 @@
 
   textForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    unlockAudio();
     send(textInput.value);
     textInput.value = '';
   });
@@ -186,6 +213,7 @@
   }
 
   micBtn.addEventListener('click', () => {
+    unlockAudio();
     if (!recognition) return;
     if (recognizing) {
       recognition.stop();
@@ -253,24 +281,12 @@
 
   // ---------------------------------------------------------------------
   // Waveform visualizer — reacts to actual TTS playback level via
-  // Web Audio's AnalyserNode; idle-animates otherwise.
-  // ---------------------------------------------------------------------
-  let audioCtx, analyser, sourceNode, dataArray;
-
-  function setupAnalyser() {
-    if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
-    sourceNode = audioCtx.createMediaElementSource(player);
-    sourceNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
-  }
-
+  // Web Audio's AnalyserNode; idle-animates otherwise. The context/graph
+  // itself is set up by unlockAudio() (called on mic/send tap) — see note
+  // above. This just does a defensive resume() in case a browser needs a
+  // nudge right as playback starts; unlockAudio() is what does the real work.
   player.addEventListener('play', () => {
-    setupAnalyser();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   });
 
   function draw() {
