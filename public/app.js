@@ -201,19 +201,48 @@
   // ---------------------------------------------------------------------
   // Audio playback (TTS)
   // ---------------------------------------------------------------------
+  // State only flips to SPEAKING once the browser actually confirms
+  // playback started (the 'playing' event) — not the moment play() is
+  // called, since play() can silently fail (blocked autoplay, bad blob,
+  // decode error) and previously left the UI stuck showing SPEAKING
+  // forever with no audio and no way back to idle.
+  let playbackWatchdog = null;
+
   function playAudio(base64Wav) {
     const blob = b64ToBlob(base64Wav, 'audio/wav');
     const url = URL.createObjectURL(blob);
     player.src = url;
-    setCoreState('speaking', 'SPEAKING');
+
+    // Stay on PROCESSING (set by the 'thinking' message) until playback
+    // is actually confirmed — don't jump to SPEAKING early.
+    clearTimeout(playbackWatchdog);
+    playbackWatchdog = setTimeout(() => {
+      // Playback never started or never fired an event within a
+      // reasonable window — don't leave the UI stuck.
+      setCoreState('idle', 'STANDING BY');
+    }, 8000);
+
     player.play().catch(() => {
-      // Autoplay can be blocked before the first user gesture on mobile —
-      // the mic/send button tap that triggered this counts as a gesture,
-      // so this mainly matters on the very first load.
+      // Autoplay can be blocked before the first user gesture on mobile.
+      // The 'error' listener below and the watchdog above both cover
+      // recovering from this — nothing further needed here.
     });
   }
 
-  player.addEventListener('ended', () => setCoreState('idle', 'STANDING BY'));
+  player.addEventListener('playing', () => {
+    clearTimeout(playbackWatchdog);
+    setCoreState('speaking', 'SPEAKING');
+  });
+
+  player.addEventListener('ended', () => {
+    clearTimeout(playbackWatchdog);
+    setCoreState('idle', 'STANDING BY');
+  });
+
+  player.addEventListener('error', () => {
+    clearTimeout(playbackWatchdog);
+    setCoreState('idle', 'STANDING BY');
+  });
 
   function b64ToBlob(base64, mime) {
     const byteChars = atob(base64);
