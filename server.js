@@ -72,6 +72,10 @@ wss.on('connection', (ws) => {
       if (msg.voice !== false) {
         try {
           const wav = await tts.synthesize(replyText);
+          console.log(`[tts] synthesized ${wav.length} bytes for reply of ${replyText.length} chars`);
+          if (wav.length < 100) {
+            console.warn('[tts] suspiciously small WAV — likely not valid audio, sending anyway for inspection');
+          }
           ws.send(JSON.stringify({ type: 'audio', audio: wav.toString('base64') }));
         } catch (err) {
           console.error('[tts] error:', err.message);

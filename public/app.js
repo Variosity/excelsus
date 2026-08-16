@@ -238,6 +238,7 @@
 
   function playAudio(base64Wav) {
     const blob = b64ToBlob(base64Wav, 'audio/wav');
+    console.log(`[audio] received blob, ${blob.size} bytes`);
     const url = URL.createObjectURL(blob);
     player.src = url;
 
@@ -250,10 +251,9 @@
       setCoreState('idle', 'STANDING BY');
     }, 8000);
 
-    player.play().catch(() => {
+    player.play().catch((err) => {
       // Autoplay can be blocked before the first user gesture on mobile.
-      // The 'error' listener below and the watchdog above both cover
-      // recovering from this — nothing further needed here.
+      console.warn('[audio] play() rejected:', err.name, err.message);
     });
   }
 
@@ -269,6 +269,9 @@
 
   player.addEventListener('error', () => {
     clearTimeout(playbackWatchdog);
+    const err = player.error;
+    // error.code: 1=ABORTED 2=NETWORK 3=DECODE 4=SRC_NOT_SUPPORTED
+    console.error('[audio] playback error', err ? { code: err.code, message: err.message } : err);
     setCoreState('idle', 'STANDING BY');
   });
 
