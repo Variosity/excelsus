@@ -1,8 +1,6 @@
 #!/bin/bash
 # Starts Piper as a persistent HTTP server (model loaded once, stays warm)
 # in the background, waits for it to actually be ready, then starts Node.
-# This replaces the old per-request `spawn(piper, ...)` approach, which
-# reloaded the ONNX model from scratch on every single reply.
 set -e
 
 PIPER_HTTP_PORT="${PIPER_HTTP_PORT:-5001}"
@@ -12,11 +10,19 @@ echo "[start.sh] launching Piper HTTP server on port ${PIPER_HTTP_PORT} with voi
 python3 -m piper.http_server -m "$VOICE" --host 127.0.0.1 --port "$PIPER_HTTP_PORT" &
 PIPER_PID=$!
 
-# Wait for Piper to actually be up before starting Node, so the very first
-# request doesn't race a server that isn't listening yet. GET with a query
-# param, not POST -- the installed server version rejects POST with 405.
+# Wait for Piper to actually be ready to synthesize before starting Node.
+#
+# IMPORTANT: this used to poll GET /?text=ready, but the installed
+# http_server only synthesizes on POST /synthesize — GET / always returns
+# its HTML test page and a 200, regardless of whether the model even
+# loaded. That made this check pass even when Piper was broken. Polling
+# POST /synthesize with a real (tiny) payload is the only way to confirm
+# the model actually loaded and can produce audio.
 for i in $(seq 1 30); do
-  if curl -sf "http://127.0.0.1:${PIPER_HTTP_PORT}/?text=ready" -o /dev/null; then
+  if curl -sf -X POST "http://127.0.0.1:${PIPER_HTTP_PORT}/synthesize" \
+      -H 'Content-Type: application/json' \
+      -d '{"text":"ready"}' \
+      -o /dev/null; then
     echo "[start.sh] Piper is ready"
     break
   fi
