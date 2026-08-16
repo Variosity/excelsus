@@ -5,6 +5,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 
 const gemini = require('./lib/gemini');
+const groq = require('./lib/groq');
 const base44Tools = require('./lib/base44Tools');
 const generalTools = require('./lib/generalTools');
 const { createEmailTools } = require('./lib/emailTools');
@@ -14,6 +15,9 @@ const PORT = process.env.PORT || 8080;
 
 for (const key of ['GEMINI_API_KEY', 'BASE44_APP_ID', 'BASE44_EMAIL', 'BASE44_PASSWORD']) {
   if (!process.env[key]) console.warn(`[warn] ${key} is not set — related features will fail.`);
+}
+if (!process.env.GROQ_API_KEY) {
+  console.warn('[warn] GROQ_API_KEY is not set — no fallback if Gemini fails.');
 }
 
 const app = express();
@@ -50,7 +54,15 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({ type: 'thinking' }));
 
     try {
-      const { replyText, history: newHistory } = await gemini.runTurn(history, msg.text, TOOL_SETS);
+      let replyText, newHistory;
+      try {
+        ({ replyText, history: newHistory } = await gemini.runTurn(history, msg.text, TOOL_SETS));
+      } catch (geminiErr) {
+        // Gemini failed for any reason — quota, rate limit, outage, bad
+        // request — fall back to Groq rather than surfacing an error.
+        console.warn('[gemini] failed, falling back to Groq:', geminiErr.message);
+        ({ replyText, history: newHistory } = await groq.runTurn(history, msg.text, TOOL_SETS));
+      }
       history = newHistory;
       // Trim history so the request body doesn't grow without bound over a long session
       if (history.length > 40) history = history.slice(history.length - 40);
